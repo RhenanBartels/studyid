@@ -1,10 +1,18 @@
-
 import unittest
-from .. studyid.anonymizer import MainGui
 
-class TestGui(unittest.TestCase):
-    def test_open_dialog_box(self):
-        dir_name = '/Users/lep/Dropbox'
-        gui_object = MainGui()
-        self.assertEqual(gui_object.dirname, dir_name)
+from os.path import join
+
+import dicom
+
+from .. studyid.anonymizer import MainGui
+from .. studyid.anonymizer import Anonymize
+
+GUI_OBJECT = MainGui()
+
+class TestAnonymize(unittest.TestCase):
+    def test_open_dicom(self):
+        file_list = GUI_OBJECT._list_dir()
+        folder_path = GUI_OBJECT.dirname
+        anonymize_object = Anonymize(folder_path, file_list)
+
 
