@@ -1,0 +1,16 @@
+<! DOCTYPE html>
+
+<html>
+    <body>
+        <center>
+            <h1> Study Id hidden fields </h2><br/><br/>
+            <ul style="alignment:left">
+                {% for dct in fields %}
+                    {% for field in dct.itervalues()|batch(3) %}
+                        <li> {{ field.0 }} - {{ field.1 }}: {{ field.2 }} </li>
+                    {% endfor %}
+                {% endfor %}
+            </ul>
+        </center>
+    </body>
+</html>
