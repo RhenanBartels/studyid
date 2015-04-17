@@ -126,10 +126,10 @@ class Anonymize(object):
     """
         Class responsible to anonymize DICOM files
     """
-    def __init__(self, gui_object):
-        self.gui_object = gui_object
-        self.folder_path = gui_object.dirname
-        self.file_name_list = gui_object._list_dir()
+    def __init__(self):
+        self.gui_object = MainGui()
+        self.folder_path = self.gui_object.dirname
+        self.file_name_list = self.gui_object._list_dir()
 
     def anonymize(self, dicom_list):
         """
@@ -147,6 +147,7 @@ class Anonymize(object):
         dicom_list = self._open_dicom_files()
         #Check if there are more than one patient
         any_error = self._check_patient(dicom_list)
+        self.gui_object._input_gui()
         studyid = self.gui_object.studyid
         if studyid and dicom_list:
             if not any_error:
@@ -156,9 +157,9 @@ class Anonymize(object):
                     self._make_subfolder()
                     dicom_list = self._set_studyid(dicom_list, studyid)
                     #Create a text file with DICOM information
-                    self._create_text_file(dicom_list[0])
+                    self._render_template(dicom_list[0], studyid)
                     self.anonymize(dicom_list)
-                    self._zip_files()
+                    self._zip_files(studyid)
                 except OSError, e:
                     self.gui_object.show_error_msgs("Create Folder Error", e)
             else:
@@ -183,14 +184,13 @@ class Anonymize(object):
             dicom_file[0x10, 0x20].value = studyid
         return dicom_list
 
-    def _render_template(self, dicom_list, studyid):
+    def _render_template(self, dicom_file, studyid):
         template_loader = jinja2.FileSystemLoader(searchpath='.')
         template_env = jinja2.Environment(loader=template_loader)
         template_file = "template.jinja"
         template = template_env.get_template(template_file)
 
-        context = self._prepare_context(dicom_list[0])
-        print context
+        context = self._prepare_context(dicom_file)
         output_template = template.render(context)
         self._save_template(output_template, studyid)
 
@@ -223,21 +223,24 @@ class Anonymize(object):
         """
             Saves the anonymized Dicom file
         """
+        dicom_name = dicom_name.split(".dcm")[0]
         #Path: folder inside selected folder
         save_path = join(self.gui_object.dirname, "Anonymized", dicom_name +
                 "_anonymized.dcm")
         dicom_file.save_as(save_path)
 
 
-    def _zip_files(self):
+    def _zip_files(self, studyid):
         """
             Zip all anonymized DICOM files to upload in the WEB API
         """
-        zip_file_name = self.gui_object.dirname.split("/")[-1]
+        anonymized_name =  "_anonymized.dcm"
         zip_obj = zipfile.ZipFile(join(self.gui_object.dirname, "Anonymized",
-            zip_file_name + ".zip"), mode='w')
+            studyid + ".zip"), mode='w')
         for file_name in self.file_name_list:
-            zip_obj.write(join(self.gui_object.dirname, file_name))
+            file_name = file_name.split(".dcm")[0] + anonymized_name
+            zip_obj.write(join(self.gui_object.dirname, "Anonymized",
+               file_name), file_name)
         zip_obj.close()
 
     def _open_dicom_files(self):
@@ -277,19 +280,18 @@ class Anonymize(object):
         """
         error_msg = "There are more than one patient in the selected" +\
         " folder:\n"
-        patient_names = ' '.join(["\n" + str(self.file_name_list[name])
-            for name in patient_error])
+        if len(patient_error):
+            patient_names = ' '.join(["\n" + str(self.file_name_list[name])
+                for name in patient_error])
+
         error_msg += patient_names
         self.gui_object.show_error_msgs("Patient Error", error_msg)
 
 
 if __name__ == '__main__':
-    gui = MainGui()
-    if len(gui.dirname.strip()) > 0:
-        gui._input_gui()
-        anonymizer_obj = Anonymize(gui)
-        if not anonymizer_obj.file_name_list:
-            anonymizer_obj.show_error_msgs("Dicom Files not Found",
-                    "There are no DICOM files in the selected Folder")
+    anonymizer_obj = Anonymize()
+    if anonymizer_obj.folder_path:
         anonymizer_obj.main()
+#    anonymizer_obj.gui_object.show_error_msgs("Dicom Files not Found",
+#            "There are no DICOM files in the selected Folder")
 
